@@ -1,0 +1,1085 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Safvacut Admin Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <!-- Favicon -->
+  <link rel="shortcut icon"
+    href="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/logo-ESKwzmjR7tbreApAoFqaXonObbk7qV.png"
+    type="image/png">
+  <style>
+    body {
+      background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 50%, #16213e 100%);
+      font-family: 'Inter', sans-serif;
+      color: white;
+      min-height: 100vh;
+    }
+
+    .admin-card {
+      backdrop-filter: blur(20px);
+      background: rgba(15, 15, 35, 0.8);
+      border: 1px solid rgba(247, 147, 30, 0.2);
+    }
+
+    .btn-admin {
+      background: linear-gradient(135deg, #f7931e 0%, #ff6b35 100%);
+      transition: all 0.3s ease;
+    }
+
+    .btn-admin:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 25px rgba(247, 147, 30, 0.4);
+    }
+
+    .btn-admin:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
+    }
+
+    .btn-danger {
+      background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    }
+
+    .btn-success {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    }
+
+    .input-admin {
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(247, 147, 30, 0.3);
+      color: white;
+    }
+
+    .input-admin:focus {
+      border-color: #f7931e;
+      box-shadow: 0 0 0 2px rgba(247, 147, 30, 0.2);
+      outline: none;
+    }
+
+    .input-admin::placeholder {
+      color: rgba(255, 255, 255, 0.5);
+    }
+
+    .user-card {
+      transition: all 0.3s ease;
+    }
+
+    .user-card:hover {
+      transform: translateY(-2px);
+      border-color: #f7931e;
+    }
+
+    .balance-input {
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(247, 147, 30, 0.5);
+      color: white;
+    }
+
+    .balance-input:focus {
+      border-color: #f7931e;
+      outline: none;
+    }
+
+    .stats-card {
+      background: linear-gradient(135deg, rgba(247, 147, 30, 0.1) 0%, rgba(255, 107, 53, 0.1) 100%);
+    }
+
+    /* Mobile optimizations */
+    @media (max-width: 768px) {
+      .container {
+        padding-left: 1rem;
+        padding-right: 1rem;
+      }
+
+      .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.75rem;
+      }
+
+      .search-grid {
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
+      }
+
+      .bulk-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .modal-content {
+        margin: 0.5rem;
+        max-height: 95vh;
+      }
+
+      .balance-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .stats-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .header-content {
+        flex-direction: column;
+        gap: 1rem;
+        text-align: center;
+      }
+
+      .header-actions {
+        width: 100%;
+        justify-content: center;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Header -->
+  <header class="admin-card border-b border-orange-500 border-opacity-20 sticky top-0 z-30">
+    <div class="px-4 sm:px-6 py-4">
+      <div class="header-content flex items-center justify-between">
+        <div class="flex items-center space-x-3 sm:space-x-4">
+          <div
+            class="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-r from-orange-500 to-red-500 rounded-full flex items-center justify-center">
+            <i class="fas fa-shield-alt text-white text-sm sm:text-base"></i>
+          </div>
+          <div>
+            <h1 class="text-lg sm:text-xl font-bold">Safvacut Admin</h1>
+            <p class="text-xs sm:text-sm text-gray-400">User Management Panel</p>
+          </div>
+        </div>
+        <div class="header-actions flex items-center space-x-2 sm:space-x-4">
+          <span class="text-xs sm:text-sm text-gray-400 hidden sm:block">
+            Welcome, <span id="admin-username">Admin</span>
+          </span>
+          <button id="logout-btn" class="btn-danger px-3 sm:px-4 py-2 rounded-lg text-white font-medium text-sm">
+            <i class="fas fa-sign-out-alt mr-1 sm:mr-2"></i>
+            <span class="hidden sm:inline">Logout</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="container mx-auto px-4 sm:px-6 py-4 sm:py-8">
+    <!-- Stats Overview -->
+    <div class="stats-grid grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-6 sm:mb-8">
+      <div class="stats-card admin-card rounded-xl p-4 sm:p-6 text-center">
+        <div class="text-xl sm:text-3xl font-bold mb-1 sm:mb-2" id="total-users">0</div>
+        <div class="text-xs sm:text-sm text-gray-400">Total Users</div>
+      </div>
+      <div class="stats-card admin-card rounded-xl p-4 sm:p-6 text-center">
+        <div class="text-xl sm:text-3xl font-bold mb-1 sm:mb-2" id="total-balance">$0</div>
+        <div class="text-xs sm:text-sm text-gray-400">Total Value</div>
+      </div>
+      <div class="stats-card admin-card rounded-xl p-4 sm:p-6 text-center">
+        <div class="text-xl sm:text-3xl font-bold mb-1 sm:mb-2" id="active-users">0</div>
+        <div class="text-xs sm:text-sm text-gray-400">Active (24h)</div>
+      </div>
+      <div class="stats-card admin-card rounded-xl p-4 sm:p-6 text-center">
+        <div class="text-xl sm:text-3xl font-bold mb-1 sm:mb-2" id="total-transactions">0</div>
+        <div class="text-xs sm:text-sm text-gray-400">Transactions</div>
+      </div>
+    </div>
+
+    <!-- User Search & Management -->
+    <div class="admin-card rounded-xl p-4 sm:p-6 mb-6 sm:mb-8">
+      <h2 class="text-lg sm:text-xl font-bold mb-4 sm:mb-6">User Management</h2>
+
+      <!-- Search Section -->
+      <div class="search-grid grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 mb-4 sm:mb-6">
+        <div>
+          <label class="block text-sm font-medium mb-2">Search by User ID</label>
+          <input type="text" id="search-user-id" class="input-admin w-full p-3 rounded-lg text-sm"
+            placeholder="Enter User ID">
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-2">Search by Email</label>
+          <input type="email" id="search-email" class="input-admin w-full p-3 rounded-lg text-sm"
+            placeholder="Enter user email">
+        </div>
+        <div class="flex items-end">
+          <button id="search-user-btn"
+            class="btn-admin px-4 sm:px-6 py-3 rounded-lg text-white font-medium w-full text-sm">
+            <i class="fas fa-search mr-2"></i>Search User
+          </button>
+        </div>
+      </div>
+
+      <!-- Quick Actions -->
+      <div class="flex flex-wrap gap-2 sm:gap-3 mb-4 sm:mb-6">
+        <button id="load-all-users-btn" class="btn-admin px-3 sm:px-4 py-2 rounded-lg text-white font-medium text-sm">
+          <i class="fas fa-users mr-1 sm:mr-2"></i>
+          <span class="hidden sm:inline">Load All Users</span>
+          <span class="sm:hidden">All Users</span>
+        </button>
+        <button id="refresh-stats-btn" class="btn-success px-3 sm:px-4 py-2 rounded-lg text-white font-medium text-sm">
+          <i class="fas fa-sync-alt mr-1 sm:mr-2"></i>
+          <span class="hidden sm:inline">Refresh Stats</span>
+          <span class="sm:hidden">Refresh</span>
+        </button>
+      </div>
+
+      <!-- User Results -->
+      <div id="user-results" class="space-y-3 sm:space-y-4">
+        <div class="text-center py-8 text-gray-400">
+          <i class="fas fa-search text-3xl sm:text-4xl mb-4"></i>
+          <p class="text-sm sm:text-base">Search for a user to get started</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bulk Operations -->
+    <div class="admin-card rounded-xl p-4 sm:p-6">
+      <h2 class="text-lg sm:text-xl font-bold mb-4 sm:mb-6">Bulk Operations</h2>
+
+      <div class="bulk-grid grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+        <!-- Add Balance to All Users -->
+        <div class="border border-gray-600 rounded-lg p-4">
+          <h3 class="font-semibold mb-4 text-sm sm:text-base">Add Balance to All Users</h3>
+          <div class="space-y-3">
+            <select id="bulk-asset" class="input-admin w-full p-3 rounded-lg text-sm">
+              <option value="BTC">Bitcoin (BTC)</option>
+              <option value="ETH">Ethereum (ETH)</option>
+              <option value="BNB">BNB (BNB)</option>
+              <option value="USDT">Tether (ERC20)</option>
+              <option value="TRC20">Tether (TRC20)</option>
+              <option value="ADA">Cardano (ADA)</option>
+            </select>
+            <input type="number" id="bulk-amount" class="input-admin w-full p-3 rounded-lg text-sm"
+              placeholder="Amount to add" step="0.00000001">
+            <button id="bulk-add-btn" class="btn-danger w-full py-3 rounded-lg text-white font-medium text-sm">
+              <i class="fas fa-exclamation-triangle mr-2"></i>Add to All Users
+            </button>
+          </div>
+        </div>
+
+        <!-- System Maintenance -->
+        <div class="border border-gray-600 rounded-lg p-4">
+          <h3 class="font-semibold mb-4 text-sm sm:text-base">System Maintenance</h3>
+          <div class="space-y-3">
+            <button id="backup-data-btn" class="btn-success w-full py-3 rounded-lg text-white font-medium text-sm">
+              <i class="fas fa-download mr-2"></i>Export User Data
+            </button>
+            <button id="clear-transactions-btn"
+              class="btn-danger w-full py-3 rounded-lg text-white font-medium text-sm">
+              <i class="fas fa-trash mr-2"></i>Clear All Transactions
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- User Edit Modal -->
+  <div id="user-edit-modal" class="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm z-50 hidden">
+    <div class="flex items-center justify-center min-h-screen p-2 sm:p-4">
+      <div class="modal-content admin-card rounded-xl p-4 sm:p-6 w-full max-w-4xl max-h-[95vh] overflow-y-auto">
+        <div class="flex items-center justify-between mb-4 sm:mb-6">
+          <h3 class="text-lg sm:text-xl font-bold">Edit User</h3>
+          <button id="close-modal" class="text-gray-400 hover:text-white p-2">
+            <i class="fas fa-times text-lg sm:text-xl"></i>
+          </button>
+        </div>
+
+        <div id="modal-content">
+          <!-- User edit form will be loaded here -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    // Firebase Config
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import {
+      getFirestore,
+      collection,
+      getDocs,
+      doc,
+      getDoc,
+      updateDoc,
+      query,
+      where,
+      orderBy,
+      serverTimestamp,
+      writeBatch,
+      addDoc
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyD6enbTO-nNYVyrNLRP-Av6ghguL3--Nvw",
+      authDomain: "safvacut-web-wallet.firebaseapp.com",
+      projectId: "safvacut-web-wallet",
+      storageBucket: "safvacut-web-wallet.appspot.com",
+      messagingSenderId: "976916444641",
+      appId: "1:976916444641:web:4c6a6ad09c43a7ccda0ea0",
+      measurementId: "G-0QCL2TQCB6"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    let allUsers = [];
+    let currentEditingUser = null;
+
+    // Mock prices for calculations
+    const CRYPTO_PRICES = {
+      BTC: 45000,
+      ETH: 2800,
+      BNB: 300,
+      USDT: 1,
+      TRC20: 1,
+      ADA: 0.5
+    };
+
+    // Check admin authentication
+    function checkAdminAuth() {
+      const adminSession = localStorage.getItem('safvacut_admin_session');
+      const sessionTime = localStorage.getItem('safvacut_admin_time');
+      const adminUser = localStorage.getItem('safvacut_admin_user');
+
+      if (!adminSession || !sessionTime) {
+        window.location.href = 'index.html';
+        return false;
+      }
+
+      const timeDiff = Date.now() - parseInt(sessionTime);
+      if (timeDiff > 3600000) { // 1 hour session expired
+        localStorage.removeItem('safvacut_admin_session');
+        localStorage.removeItem('safvacut_admin_time');
+        localStorage.removeItem('safvacut_admin_user');
+        window.location.href = 'index.html';
+        return false;
+      }
+
+      document.getElementById('admin-username').textContent = adminUser || 'Admin';
+      return true;
+    }
+
+    // Initialize dashboard
+    async function initializeDashboard() {
+      if (!checkAdminAuth()) return;
+
+      try {
+        showToast('Loading admin dashboard...', 'info');
+        await loadStats();
+        setupEventListeners();
+        showToast('Dashboard loaded successfully', 'success');
+      } catch (error) {
+        console.error('Dashboard initialization error:', error);
+        showToast('Error loading dashboard: ' + error.message, 'error');
+      }
+    }
+
+    // Load dashboard statistics
+    async function loadStats() {
+      try {
+        console.log('Loading stats...');
+
+        // Use a simpler approach - just get all documents without authentication
+        const usersRef = collection(db, "users");
+        const usersSnapshot = await getDocs(usersRef);
+
+        let totalUsers = 0;
+        let totalBalance = 0;
+        let activeUsers = 0;
+        let totalTransactions = 0;
+
+        const now = new Date();
+        const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+        usersSnapshot.forEach((doc) => {
+          const userData = doc.data();
+          totalUsers++;
+
+          // Calculate total balance
+          if (userData.walletData && userData.walletData.balances) {
+            const balances = userData.walletData.balances;
+            Object.entries(balances).forEach(([asset, balance]) => {
+              totalBalance += (balance || 0) * (CRYPTO_PRICES[asset] || 0);
+            });
+          }
+
+          // Check if user was active in last 24h
+          if (userData.updatedAt) {
+            let updatedAt;
+            if (userData.updatedAt.toDate) {
+              updatedAt = userData.updatedAt.toDate();
+            } else if (userData.updatedAt.seconds) {
+              updatedAt = new Date(userData.updatedAt.seconds * 1000);
+            } else {
+              updatedAt = new Date(userData.updatedAt);
+            }
+
+            if (updatedAt > yesterday) {
+              activeUsers++;
+            }
+          }
+
+          // Count transactions
+          if (userData.walletData && userData.walletData.transactions) {
+            totalTransactions += userData.walletData.transactions.length;
+          }
+        });
+
+        document.getElementById('total-users').textContent = totalUsers;
+        document.getElementById('total-balance').textContent = `$${totalBalance.toLocaleString()}`;
+        document.getElementById('active-users').textContent = activeUsers;
+        document.getElementById('total-transactions').textContent = totalTransactions;
+
+        console.log('Stats loaded successfully');
+
+      } catch (error) {
+        console.error('Error loading stats:', error);
+
+        // If we get a permissions error, show a specific message
+        if (error.code === 'permission-denied') {
+          showToast('Admin access denied. Please check Firestore rules.', 'error');
+        } else {
+          showToast('Error loading dashboard stats: ' + error.message, 'error');
+        }
+      }
+    }
+
+    // Search for user
+    async function searchUser() {
+      const userId = document.getElementById('search-user-id').value.trim();
+      const email = document.getElementById('search-email').value.trim();
+
+      if (!userId && !email) {
+        showToast('Please enter a User ID or email to search', 'warning');
+        return;
+      }
+
+      const searchBtn = document.getElementById('search-user-btn');
+      searchBtn.disabled = true;
+      searchBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Searching...';
+
+      try {
+        console.log('Searching for user:', { userId, email });
+        const usersRef = collection(db, "users");
+        let querySnapshot;
+
+        if (userId) {
+          const q = query(usersRef, where("uniqueId", "==", userId));
+          querySnapshot = await getDocs(q);
+        } else if (email) {
+          const q = query(usersRef, where("email", "==", email));
+          querySnapshot = await getDocs(q);
+        }
+
+        const results = [];
+        querySnapshot.forEach((doc) => {
+          results.push({ id: doc.id, ...doc.data() });
+        });
+
+        console.log('Search results:', results);
+        displayUserResults(results);
+
+        if (results.length === 0) {
+          showToast('No users found matching your search', 'info');
+        } else {
+          showToast(`Found ${results.length} user(s)`, 'success');
+        }
+
+      } catch (error) {
+        console.error('Error searching user:', error);
+
+        if (error.code === 'permission-denied') {
+          showToast('Admin access denied. Please check Firestore rules.', 'error');
+        } else {
+          showToast('Error searching for user: ' + error.message, 'error');
+        }
+      } finally {
+        searchBtn.disabled = false;
+        searchBtn.innerHTML = '<i class="fas fa-search mr-2"></i>Search User';
+      }
+    }
+
+    // Load all users
+    async function loadAllUsers() {
+      const loadBtn = document.getElementById('load-all-users-btn');
+      loadBtn.disabled = true;
+      loadBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Loading...';
+
+      try {
+        console.log('Loading all users...');
+        showToast('Loading all users...', 'info');
+
+        const usersRef = collection(db, "users");
+        const querySnapshot = await getDocs(usersRef);
+
+        allUsers = [];
+        querySnapshot.forEach((doc) => {
+          allUsers.push({ id: doc.id, ...doc.data() });
+        });
+
+        console.log('All users loaded:', allUsers.length);
+        displayUserResults(allUsers);
+        showToast(`Loaded ${allUsers.length} users`, 'success');
+
+      } catch (error) {
+        console.error('Error loading users:', error);
+
+        if (error.code === 'permission-denied') {
+          showToast('Admin access denied. Please check Firestore rules.', 'error');
+        } else {
+          showToast('Error loading users: ' + error.message, 'error');
+        }
+      } finally {
+        loadBtn.disabled = false;
+        loadBtn.innerHTML = '<i class="fas fa-users mr-2"></i><span class="hidden sm:inline">Load All Users</span><span class="sm:hidden">All Users</span>';
+      }
+    }
+
+    // Display user results
+    function displayUserResults(users) {
+      const resultsContainer = document.getElementById('user-results');
+
+      if (users.length === 0) {
+        resultsContainer.innerHTML = `
+          <div class="text-center py-8 text-gray-400">
+            <i class="fas fa-user-slash text-3xl sm:text-4xl mb-4"></i>
+            <p class="text-sm sm:text-base">No users found</p>
+          </div>
+        `;
+        return;
+      }
+
+      resultsContainer.innerHTML = users.map(user => {
+        const walletData = user.walletData || { balances: {}, transactions: [] };
+        const balances = walletData.balances || {};
+        const totalValue = calculateUserTotalValue(balances);
+
+        return `
+          <div class="user-card admin-card rounded-lg p-3 sm:p-4 border border-gray-600">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div class="flex items-center space-x-3 sm:space-x-4">
+                <img src="${user.photoURL || '/placeholder.svg?height=50&width=50'}" 
+                     alt="Avatar" class="w-10 h-10 sm:w-12 sm:h-12 rounded-full">
+                <div>
+                  <div class="font-semibold text-sm sm:text-base">${user.displayName || 'No Name'}</div>
+                  <div class="text-xs sm:text-sm text-gray-400">${user.email || 'No Email'}</div>
+                  <div class="text-xs sm:text-sm text-orange-500">ID: ${user.uniqueId || 'No ID'}</div>
+                </div>
+              </div>
+              <div class="text-left sm:text-right">
+                <div class="font-bold text-lg">$${totalValue.toFixed(2)}</div>
+                <div class="text-xs sm:text-sm text-gray-400">${walletData.transactions.length} transactions</div>
+                <button onclick="editUser('${user.id}')" 
+                        class="btn-admin px-3 sm:px-4 py-2 rounded-lg text-white font-medium mt-2 text-sm w-full sm:w-auto">
+                  <i class="fas fa-edit mr-2"></i>Edit
+                </button>
+              </div>
+            </div>
+            
+            <!-- Balance Summary -->
+            <div class="mt-4 grid grid-cols-3 sm:grid-cols-6 gap-2">
+              ${Object.entries(balances).map(([asset, balance]) => `
+                <div class="text-center p-2 bg-gray-800 rounded">
+                  <div class="text-xs text-gray-400">${asset}</div>
+                  <div class="font-semibold text-xs sm:text-sm">${parseFloat(balance || 0).toFixed(4)}</div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Calculate user total value
+    function calculateUserTotalValue(balances) {
+      let total = 0;
+      Object.entries(balances).forEach(([asset, balance]) => {
+        total += (balance || 0) * (CRYPTO_PRICES[asset] || 0);
+      });
+      return total;
+    }
+
+    // Edit user function
+    window.editUser = async function (userId) {
+      try {
+        console.log('Loading user for edit:', userId);
+        showToast('Loading user data...', 'info');
+
+        const userDoc = await getDoc(doc(db, "users", userId));
+        if (!userDoc.exists()) {
+          showToast('User not found', 'error');
+          return;
+        }
+
+        const userData = userDoc.data();
+        currentEditingUser = { id: userId, ...userData };
+
+        console.log('User data loaded:', currentEditingUser);
+        showUserEditModal(currentEditingUser);
+
+      } catch (error) {
+        console.error('Error loading user for edit:', error);
+
+        if (error.code === 'permission-denied') {
+          showToast('Admin access denied. Please check Firestore rules.', 'error');
+        } else {
+          showToast('Error loading user data: ' + error.message, 'error');
+        }
+      }
+    };
+
+    // Show user edit modal
+    function showUserEditModal(user) {
+      const modal = document.getElementById('user-edit-modal');
+      const modalContent = document.getElementById('modal-content');
+
+      const walletData = user.walletData || { balances: {}, transactions: [] };
+      const balances = walletData.balances || {};
+
+      // Ensure all crypto assets are present
+      const allAssets = ['BTC', 'ETH', 'BNB', 'USDT', 'TRC20', 'ADA'];
+      allAssets.forEach(asset => {
+        if (!balances[asset]) {
+          balances[asset] = 0;
+        }
+      });
+
+      modalContent.innerHTML = `
+        <div class="balance-grid grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+          <!-- User Info -->
+          <div>
+            <h4 class="font-semibold mb-4 text-sm sm:text-base">User Information</h4>
+            <div class="space-y-3">
+              <div>
+                <label class="block text-sm font-medium mb-1">Display Name</label>
+                <input type="text" id="edit-name" value="${user.displayName || ''}" 
+                       class="input-admin w-full p-3 rounded-lg text-sm">
+              </div>
+              <div>
+                <label class="block text-sm font-medium mb-1">Email</label>
+                <input type="email" id="edit-email" value="${user.email || ''}" 
+                       class="input-admin w-full p-3 rounded-lg text-sm" readonly>
+              </div>
+              <div>
+                <label class="block text-sm font-medium mb-1">User ID</label>
+                <input type="text" id="edit-user-id" value="${user.uniqueId || ''}" 
+                       class="input-admin w-full p-3 rounded-lg text-sm">
+              </div>
+            </div>
+          </div>
+          
+          <!-- Wallet Balances -->
+          <div>
+            <h4 class="font-semibold mb-4 text-sm sm:text-base">Wallet Balances</h4>
+            <div class="space-y-3">
+              ${allAssets.map(asset => `
+                <div class="flex items-center space-x-2 sm:space-x-3">
+                  <label class="w-12 sm:w-16 text-sm font-medium">${asset}</label>
+                  <input type="number" id="balance-${asset}" 
+                         value="${balances[asset] || 0}" 
+                         step="0.00000001"
+                         class="balance-input flex-1 p-2 rounded text-white text-sm">
+                  <button onclick="addToBalance('${asset}')" 
+                          class="btn-success px-2 sm:px-3 py-2 rounded text-white text-sm">
+                    <i class="fas fa-plus"></i>
+                  </button>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        </div>
+        
+        <!-- Transaction History -->
+        <div class="mt-6">
+          <h4 class="font-semibold mb-4 text-sm sm:text-base">Recent Transactions (${walletData.transactions.length})</h4>
+          <div class="max-h-60 overflow-y-auto space-y-2">
+            ${walletData.transactions.slice(0, 10).map(tx => `
+              <div class="flex items-center justify-between p-3 bg-gray-800 rounded">
+                <div>
+                  <div class="font-medium text-sm">${tx.type} ${tx.asset}</div>
+                  <div class="text-xs text-gray-400">${new Date(tx.timestamp).toLocaleString()}</div>
+                </div>
+                <div class="text-right">
+                  <div class="font-medium text-sm">${tx.amount} ${tx.asset}</div>
+                  <div class="text-xs text-gray-400">$${(tx.value || 0).toFixed(2)}</div>
+                </div>
+              </div>
+            `).join('') || '<p class="text-gray-400 text-center py-4 text-sm">No transactions</p>'}
+          </div>
+        </div>
+        
+        <!-- Action Buttons -->
+        <div class="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-3 mt-6">
+          <button id="cancel-edit" class="px-4 sm:px-6 py-3 bg-gray-600 rounded-lg text-white font-medium text-sm">
+            Cancel
+          </button>
+          <button id="save-user" class="btn-admin px-4 sm:px-6 py-3 rounded-lg text-white font-medium text-sm">
+            <i class="fas fa-save mr-2"></i>Save Changes
+          </button>
+          <button onclick="addTransaction()" class="btn-success px-4 sm:px-6 py-3 rounded-lg text-white font-medium text-sm">
+            <i class="fas fa-plus mr-2"></i>Add Transaction
+          </button>
+        </div>
+      `;
+
+      modal.classList.remove('hidden');
+
+      // Setup modal event listeners
+      document.getElementById('cancel-edit').addEventListener('click', () => {
+        modal.classList.add('hidden');
+      });
+
+      document.getElementById('save-user').addEventListener('click', saveUserChanges);
+    }
+
+    // Add to balance function
+    window.addToBalance = function (asset) {
+      Swal.fire({
+        title: `Add ${asset} Balance`,
+        input: 'number',
+        inputAttributes: {
+          step: '0.00000001',
+          placeholder: 'Amount to add'
+        },
+        showCancelButton: true,
+        confirmButtonColor: '#f7931a',
+        background: 'rgba(15, 15, 35, 0.9)',
+        color: '#ffffff'
+      }).then((result) => {
+        if (result.isConfirmed && result.value) {
+          const currentBalance = parseFloat(document.getElementById(`balance-${asset}`).value) || 0;
+          const addAmount = parseFloat(result.value);
+          document.getElementById(`balance-${asset}`).value = currentBalance + addAmount;
+        }
+      });
+    };
+
+    // Add transaction function
+    window.addTransaction = function () {
+      Swal.fire({
+        title: 'Add Transaction',
+        html: `
+          <div class="space-y-4">
+            <select id="tx-type" class="w-full p-3 bg-gray-700 rounded text-white">
+              <option value="receive">Receive</option>
+              <option value="send">Send</option>
+              <option value="buy">Buy</option>
+              <option value="sell">Sell</option>
+              <option value="swap">Swap</option>
+            </select>
+            <select id="tx-asset" class="w-full p-3 bg-gray-700 rounded text-white">
+              <option value="BTC">Bitcoin (BTC)</option>
+              <option value="ETH">Ethereum (ETH)</option>
+              <option value="BNB">BNB (BNB)</option>
+              <option value="USDT">Tether (ERC20)</option>
+              <option value="TRC20">Tether (TRC20)</option>
+              <option value="ADA">Cardano (ADA)</option>
+            </select>
+            <input type="number" id="tx-amount" placeholder="Amount" step="0.00000001" 
+                   class="w-full p-3 bg-gray-700 rounded text-white">
+            <input type="number" id="tx-value" placeholder="USD Value" step="0.01" 
+                   class="w-full p-3 bg-gray-700 rounded text-white">
+          </div>
+        `,
+        showCancelButton: true,
+        confirmButtonColor: '#f7931a',
+        background: 'rgba(15, 15, 35, 0.9)',
+        color: '#ffffff',
+        preConfirm: () => {
+          const type = document.getElementById('tx-type').value;
+          const asset = document.getElementById('tx-asset').value;
+          const amount = parseFloat(document.getElementById('tx-amount').value);
+          const value = parseFloat(document.getElementById('tx-value').value);
+
+          if (!amount || !value) {
+            Swal.showValidationMessage('Please fill all fields');
+            return false;
+          }
+
+          return { type, asset, amount, value };
+        }
+      }).then((result) => {
+        if (result.isConfirmed) {
+          const { type, asset, amount, value } = result.value;
+
+          // Add transaction to current user's data
+          if (!currentEditingUser.walletData) {
+            currentEditingUser.walletData = { balances: {}, transactions: [] };
+          }
+
+          const newTransaction = {
+            id: Date.now().toString(),
+            type: type,
+            asset: asset,
+            amount: amount,
+            value: value,
+            status: 'completed',
+            timestamp: new Date().toISOString(),
+            hash: '0x' + Math.random().toString(16).substr(2, 8) + '...'
+          };
+
+          currentEditingUser.walletData.transactions.unshift(newTransaction);
+
+          // Refresh modal
+          showUserEditModal(currentEditingUser);
+          showToast('Transaction added successfully', 'success');
+        }
+      });
+    };
+
+    // Save user changes
+    async function saveUserChanges() {
+      const saveBtn = document.getElementById('save-user');
+      saveBtn.disabled = true;
+      saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Saving...';
+
+      try {
+        console.log('Saving user changes...');
+
+        const updatedData = {
+          displayName: document.getElementById('edit-name').value,
+          uniqueId: document.getElementById('edit-user-id').value,
+          updatedAt: serverTimestamp()
+        };
+
+        // Update balances
+        const balances = {};
+        ['BTC', 'ETH', 'BNB', 'USDT', 'TRC20', 'ADA'].forEach(asset => {
+          balances[asset] = parseFloat(document.getElementById(`balance-${asset}`).value) || 0;
+        });
+
+        updatedData.walletData = {
+          balances: balances,
+          transactions: currentEditingUser.walletData?.transactions || [],
+          totalValue: calculateUserTotalValue(balances)
+        };
+
+        console.log('Updating user with data:', updatedData);
+        await updateDoc(doc(db, "users", currentEditingUser.id), updatedData);
+
+        document.getElementById('user-edit-modal').classList.add('hidden');
+        showToast('User updated successfully', 'success');
+
+        // Refresh the user list
+        if (allUsers.length > 0) {
+          await loadAllUsers();
+        } else {
+          await searchUser();
+        }
+
+      } catch (error) {
+        console.error('Error saving user:', error);
+
+        if (error.code === 'permission-denied') {
+          showToast('Admin access denied. Please check Firestore rules.', 'error');
+        } else {
+          showToast('Error saving user changes: ' + error.message, 'error');
+        }
+      } finally {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = '<i class="fas fa-save mr-2"></i>Save Changes';
+      }
+    }
+
+    // Bulk operations
+    async function bulkAddBalance() {
+      const asset = document.getElementById('bulk-asset').value;
+      const amount = parseFloat(document.getElementById('bulk-amount').value);
+
+      if (!amount || amount <= 0) {
+        showToast('Please enter a valid amount', 'warning');
+        return;
+      }
+
+      const result = await Swal.fire({
+        title: 'Confirm Bulk Operation',
+        text: `Add ${amount} ${asset} to ALL users?`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#f7931a',
+        cancelButtonColor: '#6b7280',
+        confirmButtonText: 'Yes, add to all',
+        background: 'rgba(15, 15, 35, 0.9)',
+        color: '#ffffff'
+      });
+
+      if (result.isConfirmed) {
+        const bulkBtn = document.getElementById('bulk-add-btn');
+        bulkBtn.disabled = true;
+        bulkBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Processing...';
+
+        try {
+          console.log('Starting bulk operation...');
+          const usersRef = collection(db, "users");
+          const querySnapshot = await getDocs(usersRef);
+
+          const batch = writeBatch(db);
+          let updateCount = 0;
+
+          querySnapshot.forEach((userDoc) => {
+            const userData = userDoc.data();
+            const walletData = userData.walletData || { balances: {}, transactions: [] };
+            const balances = walletData.balances || {};
+
+            balances[asset] = (balances[asset] || 0) + amount;
+
+            batch.update(doc(db, "users", userDoc.id), {
+              walletData: {
+                ...walletData,
+                balances: balances,
+                totalValue: calculateUserTotalValue(balances)
+              },
+              updatedAt: serverTimestamp()
+            });
+
+            updateCount++;
+          });
+
+          await batch.commit();
+          console.log('Bulk operation completed');
+
+          showToast(`Added ${amount} ${asset} to ${updateCount} users`, 'success');
+          await loadStats();
+
+        } catch (error) {
+          console.error('Error in bulk operation:', error);
+
+          if (error.code === 'permission-denied') {
+            showToast('Admin access denied. Please check Firestore rules.', 'error');
+          } else {
+            showToast('Error in bulk operation: ' + error.message, 'error');
+          }
+        } finally {
+          bulkBtn.disabled = false;
+          bulkBtn.innerHTML = '<i class="fas fa-exclamation-triangle mr-2"></i>Add to All Users';
+        }
+      }
+    }
+
+    // Export user data
+    async function exportUserData() {
+      const exportBtn = document.getElementById('backup-data-btn');
+      exportBtn.disabled = true;
+      exportBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Exporting...';
+
+      try {
+        console.log('Exporting user data...');
+        const usersRef = collection(db, "users");
+        const querySnapshot = await getDocs(usersRef);
+
+        const userData = [];
+        querySnapshot.forEach((doc) => {
+          userData.push({ id: doc.id, ...doc.data() });
+        });
+
+        const dataStr = JSON.stringify(userData, null, 2);
+        const dataBlob = new Blob([dataStr], { type: 'application/json' });
+
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(dataBlob);
+        link.download = `safvacut-users-${new Date().toISOString().split('T')[0]}.json`;
+        link.click();
+
+        showToast('User data exported successfully', 'success');
+
+      } catch (error) {
+        console.error('Error exporting data:', error);
+
+        if (error.code === 'permission-denied') {
+          showToast('Admin access denied. Please check Firestore rules.', 'error');
+        } else {
+          showToast('Error exporting user data: ' + error.message, 'error');
+        }
+      } finally {
+        exportBtn.disabled = false;
+        exportBtn.innerHTML = '<i class="fas fa-download mr-2"></i>Export User Data';
+      }
+    }
+
+    // Setup event listeners
+    function setupEventListeners() {
+      document.getElementById('logout-btn').addEventListener('click', logout);
+      document.getElementById('search-user-btn').addEventListener('click', searchUser);
+      document.getElementById('load-all-users-btn').addEventListener('click', loadAllUsers);
+      document.getElementById('refresh-stats-btn').addEventListener('click', loadStats);
+      document.getElementById('bulk-add-btn').addEventListener('click', bulkAddBalance);
+      document.getElementById('backup-data-btn').addEventListener('click', exportUserData);
+      document.getElementById('close-modal').addEventListener('click', () => {
+        document.getElementById('user-edit-modal').classList.add('hidden');
+      });
+
+      // Enter key search
+      document.getElementById('search-user-id').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') searchUser();
+      });
+      document.getElementById('search-email').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') searchUser();
+      });
+
+      // Click outside modal to close
+      document.getElementById('user-edit-modal').addEventListener('click', (e) => {
+        if (e.target.id === 'user-edit-modal') {
+          document.getElementById('user-edit-modal').classList.add('hidden');
+        }
+      });
+    }
+
+    // Logout function
+    function logout() {
+      Swal.fire({
+        title: 'Logout',
+        text: 'Are you sure you want to logout?',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#f7931a',
+        cancelButtonColor: '#6b7280',
+        confirmButtonText: 'Yes, logout',
+        background: 'rgba(15, 15, 35, 0.9)',
+        color: '#ffffff'
+      }).then((result) => {
+        if (result.isConfirmed) {
+          localStorage.removeItem('safvacut_admin_session');
+          localStorage.removeItem('safvacut_admin_time');
+          localStorage.removeItem('safvacut_admin_user');
+          window.location.href = 'index.html';
+        }
+      });
+    }
+
+    // Toast notification
+    function showToast(message, type = 'success') {
+      Swal.fire({
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 3000,
+        timerProgressBar: true,
+        icon: type,
+        title: message,
+        background: 'rgba(15, 15, 35, 0.9)',
+        color: '#ffffff'
+      });
+    }
+
+    // Initialize dashboard on load
+    document.addEventListener('DOMContentLoaded', initializeDashboard);
+
+    // Global error handler
+    window.addEventListener('error', (e) => {
+      console.error('Global error:', e.error);
+      showToast('An unexpected error occurred', 'error');
+    });
+
+    // Unhandled promise rejection handler
+    window.addEventListener('unhandledrejection', (e) => {
+      console.error('Unhandled promise rejection:', e.reason);
+      showToast('An unexpected error occurred', 'error');
+    });
+  </script>
+</body>
+
+</html>
