@@ -188,6 +188,26 @@
       </div>
     </div>
 
+    <div class="admin-card rounded-xl p-4 sm:p-6 mb-6 sm:mb-8">
+      <div class="flex items-center justify-between mb-4 sm:mb-6">
+        <h2 class="text-lg sm:text-xl font-bold">⏳ Pending Transactions</h2>
+        <div class="flex items-center space-x-2">
+          <span id="pending-count"
+            class="bg-yellow-500 bg-opacity-20 text-yellow-500 px-3 py-1 rounded-full text-sm font-medium">0</span>
+          <button id="refresh-pending-btn" class="btn-success px-3 py-1 rounded-lg text-white font-medium text-sm">
+            <i class="fas fa-sync-alt mr-1"></i>Refresh
+          </button>
+        </div>
+      </div>
+
+      <div id="pending-transactions-list" class="space-y-3 sm:space-y-4">
+        <div class="text-center py-8 text-gray-400">
+          <i class="fas fa-clock text-3xl sm:text-4xl mb-4"></i>
+          <p class="text-sm sm:text-base">Loading pending transactions...</p>
+        </div>
+      </div>
+    </div>
+
     <!-- User Search & Management -->
     <div class="admin-card rounded-xl p-4 sm:p-6 mb-6 sm:mb-8">
       <h2 class="text-lg sm:text-xl font-bold mb-4 sm:mb-6">User Management</h2>
@@ -294,37 +314,119 @@
       </div>
     </div>
   </div>
-
   <script type="module">
-    // Firebase Config
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-    import {
-      getFirestore,
-      collection,
-      getDocs,
-      doc,
-      getDoc,
-      updateDoc,
-      query,
-      where,
-      orderBy,
-      serverTimestamp,
-      writeBatch,
-      addDoc
-    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    // Firebase Config - ALTERNATIVE CDN APPROACH
+    let app, db;
 
-    const firebaseConfig = {
-      apiKey: "AIzaSyD6enbTO-nNYVyrNLRP-Av6ghguL3--Nvw",
-      authDomain: "safvacut-web-wallet.firebaseapp.com",
-      projectId: "safvacut-web-wallet",
-      storageBucket: "safvacut-web-wallet.appspot.com",
-      messagingSenderId: "976916444641",
-      appId: "1:976916444641:web:4c6a6ad09c43a7ccda0ea0",
-      measurementId: "G-0QCL2TQCB6"
-    };
+    // Try multiple Firebase CDN sources
+    async function initializeFirebase() {
+      try {
+        // Method 1: Try primary CDN
+        const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js");
+        const {
+          getFirestore,
+          collection,
+          getDocs,
+          doc,
+          getDoc,
+          updateDoc,
+          query,
+          where,
+          orderBy,
+          serverTimestamp,
+          writeBatch,
+          addDoc
+        } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
 
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
+        const firebaseConfig = {
+          apiKey: "AIzaSyD6enbTO-nNYVyrNLRP-Av6ghguL3--Nvw",
+          authDomain: "safvacut-web-wallet.firebaseapp.com",
+          projectId: "safvacut-web-wallet",
+          storageBucket: "safvacut-web-wallet.appspot.com",
+          messagingSenderId: "976916444641",
+          appId: "1:976916444641:web:4c6a6ad09c43a7ccda0ea0",
+          measurementId: "G-0QCL2TQCB6"
+        };
+
+        app = initializeApp(firebaseConfig);
+        db = getFirestore(app);
+
+        // Make Firebase functions globally available
+        window.firebase = {
+          collection,
+          getDocs,
+          doc,
+          getDoc,
+          updateDoc,
+          query,
+          where,
+          orderBy,
+          serverTimestamp,
+          writeBatch,
+          addDoc
+        };
+
+        console.log('Firebase initialized successfully');
+        return true;
+
+      } catch (error) {
+        console.error('Primary Firebase CDN failed:', error);
+
+        try {
+          // Method 2: Try alternative CDN
+          const { initializeApp } = await import("https://unpkg.com/firebase@10.12.2/firebase-app.js");
+          const {
+            getFirestore,
+            collection,
+            getDocs,
+            doc,
+            getDoc,
+            updateDoc,
+            query,
+            where,
+            orderBy,
+            serverTimestamp,
+            writeBatch,
+            addDoc
+          } = await import("https://unpkg.com/firebase@10.12.2/firebase-firestore.js");
+
+          const firebaseConfig = {
+            apiKey: "AIzaSyD6enbTO-nNYVyrNLRP-Av6ghguL3--Nvw",
+            authDomain: "safvacut-web-wallet.firebaseapp.com",
+            projectId: "safvacut-web-wallet",
+            storageBucket: "safvacut-web-wallet.appspot.com",
+            messagingSenderId: "976916444641",
+            appId: "1:976916444641:web:4c6a6ad09c43a7ccda0ea0",
+            measurementId: "G-0QCL2TQCB6"
+          };
+
+          app = initializeApp(firebaseConfig);
+          db = getFirestore(app);
+
+          window.firebase = {
+            collection,
+            getDocs,
+            doc,
+            getDoc,
+            updateDoc,
+            query,
+            where,
+            orderBy,
+            serverTimestamp,
+            writeBatch,
+            addDoc
+          };
+
+          console.log('Firebase initialized with alternative CDN');
+          return true;
+
+        } catch (altError) {
+          console.error('Alternative Firebase CDN also failed:', altError);
+          showToast('Firebase loading failed. Please refresh the page.', 'error');
+          return false;
+        }
+      }
+    }
 
     let allUsers = [];
     let currentEditingUser = null;
@@ -339,6 +441,25 @@
       ADA: 0.5
     };
 
+    // Helper function to safely update element content
+    function safeUpdateElement(elementId, content) {
+      const element = document.getElementById(elementId);
+      if (element) {
+        element.textContent = content;
+      } else {
+        console.warn(`Element with ID '${elementId}' not found`);
+      }
+    }
+
+    // Helper function to safely get element
+    function safeGetElement(elementId) {
+      const element = document.getElementById(elementId);
+      if (!element) {
+        console.warn(`Element with ID '${elementId}' not found`);
+      }
+      return element;
+    }
+
     // Check admin authentication
     function checkAdminAuth() {
       const adminSession = localStorage.getItem('safvacut_admin_session');
@@ -346,7 +467,7 @@
       const adminUser = localStorage.getItem('safvacut_admin_user');
 
       if (!adminSession || !sessionTime) {
-        window.location.href = 'index.html';
+        window.location.href = 'admin-login.html';
         return false;
       }
 
@@ -355,37 +476,429 @@
         localStorage.removeItem('safvacut_admin_session');
         localStorage.removeItem('safvacut_admin_time');
         localStorage.removeItem('safvacut_admin_user');
-        window.location.href = 'index.html';
+        window.location.href = 'admin-login.html';
         return false;
       }
 
-      document.getElementById('admin-username').textContent = adminUser || 'Admin';
+      safeUpdateElement('admin-username', adminUser || 'Admin');
       return true;
     }
 
-    // Initialize dashboard
-    async function initializeDashboard() {
-      if (!checkAdminAuth()) return;
-
+    // Load users function
+    async function loadUsers() {
       try {
-        showToast('Loading admin dashboard...', 'info');
-        await loadStats();
-        setupEventListeners();
-        showToast('Dashboard loaded successfully', 'success');
+        console.log('Loading users...');
+        showToast('Loading users...', 'info');
+
+        const usersRef = window.firebase.collection(db, "users");
+        const usersSnapshot = await window.firebase.getDocs(usersRef);
+
+        allUsers = [];
+        usersSnapshot.forEach((doc) => {
+          allUsers.push({ id: doc.id, ...doc.data() });
+        });
+
+        console.log('Users loaded:', allUsers.length);
+        displayUserResults(allUsers);
+        showToast(`Loaded ${allUsers.length} users`, 'success');
+
+        return allUsers;
       } catch (error) {
-        console.error('Dashboard initialization error:', error);
-        showToast('Error loading dashboard: ' + error.message, 'error');
+        console.error('Error loading users:', error);
+        showToast('Error loading users: ' + error.message, 'error');
+        return [];
       }
     }
+
+    // Show add user modal
+    function showAddUserModal() {
+      Swal.fire({
+        title: 'Add New User',
+        html: `
+                <div class="space-y-4">
+                    <input type="email" id="new-user-email" placeholder="Email" 
+                           class="w-full p-3 bg-gray-700 rounded text-white">
+                    <input type="text" id="new-user-name" placeholder="Display Name" 
+                           class="w-full p-3 bg-gray-700 rounded text-white">
+                    <input type="text" id="new-user-id" placeholder="User ID" 
+                           class="w-full p-3 bg-gray-700 rounded text-white">
+                </div>
+            `,
+        showCancelButton: true,
+        confirmButtonColor: '#f7931a',
+        background: 'rgba(15, 15, 35, 0.9)',
+        color: '#ffffff',
+        preConfirm: () => {
+          const email = document.getElementById('new-user-email').value;
+          const name = document.getElementById('new-user-name').value;
+          const userId = document.getElementById('new-user-id').value;
+
+          if (!email || !name || !userId) {
+            Swal.showValidationMessage('Please fill all fields');
+            return false;
+          }
+
+          return { email, name, userId };
+        }
+      }).then(async (result) => {
+        if (result.isConfirmed) {
+          try {
+            const { email, name, userId } = result.value;
+
+            const newUserData = {
+              email: email,
+              displayName: name,
+              uniqueId: userId,
+              walletData: {
+                balances: {
+                  BTC: 0,
+                  ETH: 0,
+                  BNB: 0,
+                  USDT: 0,
+                  TRC20: 0,
+                  ADA: 0
+                },
+                transactions: []
+              },
+              createdAt: window.firebase.serverTimestamp(),
+              updatedAt: window.firebase.serverTimestamp()
+            };
+
+            await window.firebase.addDoc(window.firebase.collection(db, "users"), newUserData);
+            showToast('User added successfully', 'success');
+            loadUsers();
+          } catch (error) {
+            console.error('Error adding user:', error);
+            showToast('Error adding user: ' + error.message, 'error');
+          }
+        }
+      });
+    }
+
+    // Load pending transactions
+    async function loadPendingTransactions() {
+      try {
+        console.log('Loading pending transactions...');
+        const pendingContainer = safeGetElement('pending-transactions-list');
+        const pendingCount = safeGetElement('pending-count');
+
+        if (pendingContainer) {
+          pendingContainer.innerHTML = `
+                    <div class="text-center py-8 text-gray-400">
+                        <div class="loading-spinner mx-auto mb-4"></div>
+                        <p class="text-sm sm:text-base">Loading pending transactions...</p>
+                    </div>
+                `;
+        }
+
+        const usersRef = window.firebase.collection(db, "users");
+        const usersSnapshot = await window.firebase.getDocs(usersRef);
+
+        const pendingTransactions = [];
+
+        usersSnapshot.forEach((doc) => {
+          const userData = doc.data();
+          if (userData.walletData && userData.walletData.transactions) {
+            userData.walletData.transactions.forEach(tx => {
+              if (tx.status === 'pending' && tx.type === 'send') {
+                pendingTransactions.push({
+                  ...tx,
+                  userId: doc.id,
+                  userEmail: userData.email,
+                  userName: userData.displayName || userData.email?.split('@')[0] || 'Unknown User',
+                  uniqueId: userData.uniqueId || 'N/A'
+                });
+              }
+            });
+          }
+        });
+
+        // Sort by timestamp (newest first)
+        pendingTransactions.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+        displayPendingTransactions(pendingTransactions);
+
+        // Update count
+        if (pendingCount) {
+          pendingCount.textContent = pendingTransactions.length;
+        }
+
+      } catch (error) {
+        console.error('Error loading pending transactions:', error);
+        showToast('Error loading pending transactions: ' + error.message, 'error');
+
+        const pendingContainer = safeGetElement('pending-transactions-list');
+        if (pendingContainer) {
+          pendingContainer.innerHTML = `
+                    <div class="text-center py-8 text-red-400">
+                        <i class="fas fa-exclamation-triangle text-3xl mb-4"></i>
+                        <p class="text-sm">Error loading pending transactions</p>
+                    </div>
+                `;
+        }
+      }
+    }
+
+    // Display pending transactions
+    function displayPendingTransactions(transactions) {
+      const container = safeGetElement('pending-transactions-list');
+      if (!container) return;
+
+      if (transactions.length === 0) {
+        container.innerHTML = `
+                <div class="text-center py-8 text-gray-400">
+                    <i class="fas fa-check-circle text-3xl sm:text-4xl mb-4 text-green-500"></i>
+                    <p class="text-sm sm:text-base">No pending transactions</p>
+                    <p class="text-xs text-gray-500 mt-2">All transactions have been processed</p>
+                </div>
+            `;
+        return;
+      }
+
+      container.innerHTML = transactions.map((tx, index) => `
+            <div class="admin-card rounded-lg p-4 border-l-4 border-yellow-500 bg-yellow-500 bg-opacity-5" data-aos="fade-up" data-aos-delay="${index * 100}">
+                <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                    <div class="flex-1">
+                        <div class="flex items-center gap-3 mb-3">
+                            <div class="w-10 h-10 rounded-full bg-yellow-500 bg-opacity-20 flex items-center justify-center">
+                                <i class="fas fa-paper-plane text-yellow-500"></i>
+                            </div>
+                            <div>
+                                <div class="font-bold text-yellow-500 text-lg">PENDING SEND</div>
+                                <div class="text-sm text-gray-400">Transaction ID: ${tx.id}</div>
+                            </div>
+                        </div>
+                        
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                            <div>
+                                <span class="text-gray-400">User:</span>
+                                <span class="font-medium ml-2">${tx.userName}</span>
+                            </div>
+                            <div>
+                                <span class="text-gray-400">Email:</span>
+                                <span class="font-medium ml-2">${tx.userEmail}</span>
+                            </div>
+                            <div>
+                                <span class="text-gray-400">User ID:</span>
+                                <span class="font-mono text-orange-500 ml-2">${tx.uniqueId}</span>
+                            </div>
+                            <div>
+                                <span class="text-gray-400">Asset:</span>
+                                <span class="font-bold text-orange-500 ml-2">${tx.amount} ${tx.asset}</span>
+                            </div>
+                            <div class="sm:col-span-2">
+                                <span class="text-gray-400">To Address:</span>
+                                <span class="font-mono text-sm ml-2 break-all">${tx.recipientAddress || 'N/A'}</span>
+                            </div>
+                            <div>
+                                <span class="text-gray-400">Value:</span>
+                                <span class="font-medium text-green-500 ml-2">$${tx.value.toFixed(2)}</span>
+                            </div>
+                            <div>
+                                <span class="text-gray-400">Date:</span>
+                                <span class="font-medium ml-2">${new Date(tx.timestamp).toLocaleString()}</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="flex flex-col sm:flex-row gap-2 lg:w-auto w-full">
+                        <button onclick="approveTransaction('${tx.userId}', '${tx.id}')"
+                                 class="btn-success px-4 py-2 rounded-lg text-white font-medium text-sm flex items-center justify-center">
+                            <i class="fas fa-check mr-2"></i>Approve
+                        </button>
+                        <button onclick="rejectTransaction('${tx.userId}', '${tx.id}')"
+                                 class="btn-danger px-4 py-2 rounded-lg text-white font-medium text-sm flex items-center justify-center">
+                            <i class="fas fa-times mr-2"></i>Reject
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    // Approve transaction
+    window.approveTransaction = async function (userId, transactionId) {
+      try {
+        const result = await Swal.fire({
+          title: 'Approve Transaction',
+          text: 'This will deduct the amount from user\'s balance and mark as completed.',
+          icon: 'question',
+          showCancelButton: true,
+          confirmButtonColor: '#10b981',
+          cancelButtonColor: '#6b7280',
+          confirmButtonText: 'Yes, approve it!',
+          cancelButtonText: 'Cancel',
+          background: 'rgba(15, 15, 35, 0.9)',
+          color: '#ffffff'
+        });
+
+        if (result.isConfirmed) {
+          Swal.fire({
+            title: 'Processing...',
+            text: 'Approving transaction...',
+            allowOutsideClick: false,
+            showConfirmButton: false,
+            background: 'rgba(15, 15, 35, 0.9)',
+            color: '#ffffff',
+            didOpen: () => {
+              Swal.showLoading();
+            }
+          });
+
+          const userDocRef = window.firebase.doc(db, "users", userId);
+          const userDoc = await window.firebase.getDoc(userDocRef);
+
+          if (userDoc.exists()) {
+            const userData = userDoc.data();
+            const walletData = userData.walletData;
+
+            const txIndex = walletData.transactions.findIndex(tx => tx.id === transactionId);
+            if (txIndex !== -1) {
+              const transaction = walletData.transactions[txIndex];
+
+              if (walletData.balances[transaction.asset] < transaction.amount) {
+                Swal.fire({
+                  title: 'Insufficient Balance',
+                  text: `User doesn't have enough ${transaction.asset} balance to complete this transaction.`,
+                  icon: 'error',
+                  confirmButtonColor: '#f7931a',
+                  background: 'rgba(15, 15, 35, 0.9)',
+                  color: '#ffffff'
+                });
+                return;
+              }
+
+              walletData.transactions[txIndex].status = 'completed';
+              walletData.transactions[txIndex].approvedAt = new Date();
+              walletData.transactions[txIndex].approvedBy = 'admin';
+
+              walletData.balances[transaction.asset] -= transaction.amount;
+
+              if (walletData.balances['ETH'] && walletData.balances['ETH'] >= 0.001) {
+                walletData.balances['ETH'] -= 0.001;
+              }
+
+              await window.firebase.updateDoc(userDocRef, {
+                walletData: walletData,
+                updatedAt: window.firebase.serverTimestamp()
+              });
+
+              Swal.fire({
+                title: 'Transaction Approved!',
+                text: 'The transaction has been approved and processed successfully.',
+                icon: 'success',
+                confirmButtonColor: '#10b981',
+                background: 'rgba(15, 15, 35, 0.9)',
+                color: '#ffffff'
+              });
+
+              loadPendingTransactions();
+              loadStats();
+            } else {
+              throw new Error('Transaction not found');
+            }
+          } else {
+            throw new Error('User not found');
+          }
+        }
+      } catch (error) {
+        console.error('Error approving transaction:', error);
+        Swal.fire({
+          title: 'Error',
+          text: 'Error approving transaction: ' + error.message,
+          icon: 'error',
+          confirmButtonColor: '#f7931a',
+          background: 'rgba(15, 15, 35, 0.9)',
+          color: '#ffffff'
+        });
+      }
+    };
+
+    // Reject transaction
+    window.rejectTransaction = async function (userId, transactionId) {
+      try {
+        const result = await Swal.fire({
+          title: 'Reject Transaction',
+          text: 'This will mark the transaction as failed. The user\'s balance will not be affected.',
+          icon: 'warning',
+          showCancelButton: true,
+          confirmButtonColor: '#ef4444',
+          cancelButtonColor: '#6b7280',
+          confirmButtonText: 'Yes, reject it!',
+          cancelButtonText: 'Cancel',
+          background: 'rgba(15, 15, 35, 0.9)',
+          color: '#ffffff'
+        });
+
+        if (result.isConfirmed) {
+          Swal.fire({
+            title: 'Processing...',
+            text: 'Rejecting transaction...',
+            allowOutsideClick: false,
+            showConfirmButton: false,
+            background: 'rgba(15, 15, 35, 0.9)',
+            color: '#ffffff',
+            didOpen: () => {
+              Swal.showLoading();
+            }
+          });
+
+          const userDocRef = window.firebase.doc(db, "users", userId);
+          const userDoc = await window.firebase.getDoc(userDocRef);
+
+          if (userDoc.exists()) {
+            const userData = userDoc.data();
+            const walletData = userData.walletData;
+
+            const txIndex = walletData.transactions.findIndex(tx => tx.id === transactionId);
+            if (txIndex !== -1) {
+              walletData.transactions[txIndex].status = 'failed';
+              walletData.transactions[txIndex].rejectedAt = new Date();
+              walletData.transactions[txIndex].rejectedBy = 'admin';
+
+              await window.firebase.updateDoc(userDocRef, {
+                walletData: walletData,
+                updatedAt: window.firebase.serverTimestamp()
+              });
+
+              Swal.fire({
+                title: 'Transaction Rejected!',
+                text: 'The transaction has been rejected successfully.',
+                icon: 'success',
+                confirmButtonColor: '#ef4444',
+                background: 'rgba(15, 15, 35, 0.9)',
+                color: '#ffffff'
+              });
+
+              loadPendingTransactions();
+              loadStats();
+            } else {
+              throw new Error('Transaction not found');
+            }
+          } else {
+            throw new Error('User not found');
+          }
+        }
+      } catch (error) {
+        console.error('Error rejecting transaction:', error);
+        Swal.fire({
+          title: 'Error',
+          text: 'Error rejecting transaction: ' + error.message,
+          icon: 'error',
+          confirmButtonColor: '#f7931a',
+          background: 'rgba(15, 15, 35, 0.9)',
+          color: '#ffffff'
+        });
+      }
+    };
 
     // Load dashboard statistics
     async function loadStats() {
       try {
         console.log('Loading stats...');
 
-        // Use a simpler approach - just get all documents without authentication
-        const usersRef = collection(db, "users");
-        const usersSnapshot = await getDocs(usersRef);
+        const usersRef = window.firebase.collection(db, "users");
+        const usersSnapshot = await window.firebase.getDocs(usersRef);
 
         let totalUsers = 0;
         let totalBalance = 0;
@@ -399,7 +912,6 @@
           const userData = doc.data();
           totalUsers++;
 
-          // Calculate total balance
           if (userData.walletData && userData.walletData.balances) {
             const balances = userData.walletData.balances;
             Object.entries(balances).forEach(([asset, balance]) => {
@@ -407,7 +919,6 @@
             });
           }
 
-          // Check if user was active in last 24h
           if (userData.updatedAt) {
             let updatedAt;
             if (userData.updatedAt.toDate) {
@@ -423,23 +934,21 @@
             }
           }
 
-          // Count transactions
           if (userData.walletData && userData.walletData.transactions) {
             totalTransactions += userData.walletData.transactions.length;
           }
         });
 
-        document.getElementById('total-users').textContent = totalUsers;
-        document.getElementById('total-balance').textContent = `$${totalBalance.toLocaleString()}`;
-        document.getElementById('active-users').textContent = activeUsers;
-        document.getElementById('total-transactions').textContent = totalTransactions;
+        safeUpdateElement('total-users', totalUsers);
+        safeUpdateElement('total-balance', `$${totalBalance.toLocaleString()}`);
+        safeUpdateElement('active-users', activeUsers);
+        safeUpdateElement('total-transactions', totalTransactions);
 
         console.log('Stats loaded successfully');
 
       } catch (error) {
         console.error('Error loading stats:', error);
 
-        // If we get a permissions error, show a specific message
         if (error.code === 'permission-denied') {
           showToast('Admin access denied. Please check Firestore rules.', 'error');
         } else {
@@ -450,29 +959,34 @@
 
     // Search for user
     async function searchUser() {
-      const userId = document.getElementById('search-user-id').value.trim();
-      const email = document.getElementById('search-email').value.trim();
+      const userIdInput = safeGetElement('search-user-id');
+      const emailInput = safeGetElement('search-email');
+
+      const userId = userIdInput ? userIdInput.value.trim() : '';
+      const email = emailInput ? emailInput.value.trim() : '';
 
       if (!userId && !email) {
         showToast('Please enter a User ID or email to search', 'warning');
         return;
       }
 
-      const searchBtn = document.getElementById('search-user-btn');
-      searchBtn.disabled = true;
-      searchBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Searching...';
+      const searchBtn = safeGetElement('search-user-btn');
+      if (searchBtn) {
+        searchBtn.disabled = true;
+        searchBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Searching...';
+      }
 
       try {
         console.log('Searching for user:', { userId, email });
-        const usersRef = collection(db, "users");
+        const usersRef = window.firebase.collection(db, "users");
         let querySnapshot;
 
         if (userId) {
-          const q = query(usersRef, where("uniqueId", "==", userId));
-          querySnapshot = await getDocs(q);
+          const q = window.firebase.query(usersRef, window.firebase.where("uniqueId", "==", userId));
+          querySnapshot = await window.firebase.getDocs(q);
         } else if (email) {
-          const q = query(usersRef, where("email", "==", email));
-          querySnapshot = await getDocs(q);
+          const q = window.firebase.query(usersRef, window.firebase.where("email", "==", email));
+          querySnapshot = await window.firebase.getDocs(q);
         }
 
         const results = [];
@@ -498,23 +1012,27 @@
           showToast('Error searching for user: ' + error.message, 'error');
         }
       } finally {
-        searchBtn.disabled = false;
-        searchBtn.innerHTML = '<i class="fas fa-search mr-2"></i>Search User';
+        if (searchBtn) {
+          searchBtn.disabled = false;
+          searchBtn.innerHTML = '<i class="fas fa-search mr-2"></i>Search User';
+        }
       }
     }
 
     // Load all users
     async function loadAllUsers() {
-      const loadBtn = document.getElementById('load-all-users-btn');
-      loadBtn.disabled = true;
-      loadBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Loading...';
+      const loadBtn = safeGetElement('load-all-users-btn');
+      if (loadBtn) {
+        loadBtn.disabled = true;
+        loadBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Loading...';
+      }
 
       try {
         console.log('Loading all users...');
         showToast('Loading all users...', 'info');
 
-        const usersRef = collection(db, "users");
-        const querySnapshot = await getDocs(usersRef);
+        const usersRef = window.firebase.collection(db, "users");
+        const querySnapshot = await window.firebase.getDocs(usersRef);
 
         allUsers = [];
         querySnapshot.forEach((doc) => {
@@ -534,22 +1052,25 @@
           showToast('Error loading users: ' + error.message, 'error');
         }
       } finally {
-        loadBtn.disabled = false;
-        loadBtn.innerHTML = '<i class="fas fa-users mr-2"></i><span class="hidden sm:inline">Load All Users</span><span class="sm:hidden">All Users</span>';
+        if (loadBtn) {
+          loadBtn.disabled = false;
+          loadBtn.innerHTML = '<i class="fas fa-users mr-2"></i><span class="hidden sm:inline">Load All Users</span><span class="sm:hidden">All Users</span>';
+        }
       }
     }
 
     // Display user results
     function displayUserResults(users) {
-      const resultsContainer = document.getElementById('user-results');
+      const resultsContainer = safeGetElement('user-results');
+      if (!resultsContainer) return;
 
       if (users.length === 0) {
         resultsContainer.innerHTML = `
-          <div class="text-center py-8 text-gray-400">
-            <i class="fas fa-user-slash text-3xl sm:text-4xl mb-4"></i>
-            <p class="text-sm sm:text-base">No users found</p>
-          </div>
-        `;
+                <div class="text-center py-8 text-gray-400">
+                    <i class="fas fa-user-slash text-3xl sm:text-4xl mb-4"></i>
+                    <p class="text-sm sm:text-base">No users found</p>
+                </div>
+            `;
         return;
       }
 
@@ -559,38 +1080,38 @@
         const totalValue = calculateUserTotalValue(balances);
 
         return `
-          <div class="user-card admin-card rounded-lg p-3 sm:p-4 border border-gray-600">
-            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              <div class="flex items-center space-x-3 sm:space-x-4">
-                <img src="${user.photoURL || '/placeholder.svg?height=50&width=50'}" 
-                     alt="Avatar" class="w-10 h-10 sm:w-12 sm:h-12 rounded-full">
-                <div>
-                  <div class="font-semibold text-sm sm:text-base">${user.displayName || 'No Name'}</div>
-                  <div class="text-xs sm:text-sm text-gray-400">${user.email || 'No Email'}</div>
-                  <div class="text-xs sm:text-sm text-orange-500">ID: ${user.uniqueId || 'No ID'}</div>
+                <div class="user-card admin-card rounded-lg p-3 sm:p-4 border border-gray-600">
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        <div class="flex items-center space-x-3 sm:space-x-4">
+                            <img src="${user.photoURL || '/placeholder.svg?height=50&width=50'}"
+                                 alt="Avatar" class="w-10 h-10 sm:w-12 sm:h-12 rounded-full">
+                            <div>
+                                <div class="font-semibold text-sm sm:text-base">${user.displayName || 'No Name'}</div>
+                                <div class="text-xs sm:text-sm text-gray-400">${user.email || 'No Email'}</div>
+                                <div class="text-xs sm:text-sm text-orange-500">ID: ${user.uniqueId || 'No ID'}</div>
+                            </div>
+                        </div>
+                        <div class="text-left sm:text-right">
+                            <div class="font-bold text-lg">$${totalValue.toFixed(2)}</div>
+                            <div class="text-xs sm:text-sm text-gray-400">${walletData.transactions.length} transactions</div>
+                            <button onclick="editUser('${user.id}')"
+                                     class="btn-admin px-3 sm:px-4 py-2 rounded-lg text-white font-medium mt-2 text-sm w-full sm:w-auto">
+                                <i class="fas fa-edit mr-2"></i>Edit
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Balance Summary -->
+                    <div class="mt-4 grid grid-cols-3 sm:grid-cols-6 gap-2">
+                        ${Object.entries(balances).map(([asset, balance]) => `
+                            <div class="text-center p-2 bg-gray-800 rounded">
+                                <div class="text-xs text-gray-400">${asset}</div>
+                                <div class="font-semibold text-xs sm:text-sm">${parseFloat(balance || 0).toFixed(4)}</div>
+                            </div>
+                        `).join('')}
+                    </div>
                 </div>
-              </div>
-              <div class="text-left sm:text-right">
-                <div class="font-bold text-lg">$${totalValue.toFixed(2)}</div>
-                <div class="text-xs sm:text-sm text-gray-400">${walletData.transactions.length} transactions</div>
-                <button onclick="editUser('${user.id}')" 
-                        class="btn-admin px-3 sm:px-4 py-2 rounded-lg text-white font-medium mt-2 text-sm w-full sm:w-auto">
-                  <i class="fas fa-edit mr-2"></i>Edit
-                </button>
-              </div>
-            </div>
-            
-            <!-- Balance Summary -->
-            <div class="mt-4 grid grid-cols-3 sm:grid-cols-6 gap-2">
-              ${Object.entries(balances).map(([asset, balance]) => `
-                <div class="text-center p-2 bg-gray-800 rounded">
-                  <div class="text-xs text-gray-400">${asset}</div>
-                  <div class="font-semibold text-xs sm:text-sm">${parseFloat(balance || 0).toFixed(4)}</div>
-                </div>
-              `).join('')}
-            </div>
-          </div>
-        `;
+            `;
       }).join('');
     }
 
@@ -609,7 +1130,7 @@
         console.log('Loading user for edit:', userId);
         showToast('Loading user data...', 'info');
 
-        const userDoc = await getDoc(doc(db, "users", userId));
+        const userDoc = await window.firebase.getDoc(window.firebase.doc(db, "users", userId));
         if (!userDoc.exists()) {
           showToast('User not found', 'error');
           return;
@@ -634,8 +1155,13 @@
 
     // Show user edit modal
     function showUserEditModal(user) {
-      const modal = document.getElementById('user-edit-modal');
-      const modalContent = document.getElementById('modal-content');
+      const modal = safeGetElement('user-edit-modal');
+      const modalContent = safeGetElement('modal-content');
+
+      if (!modal || !modalContent) {
+        console.error('Modal elements not found');
+        return;
+      }
 
       const walletData = user.walletData || { balances: {}, transactions: [] };
       const balances = walletData.balances || {};
@@ -649,91 +1175,98 @@
       });
 
       modalContent.innerHTML = `
-        <div class="balance-grid grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-          <!-- User Info -->
-          <div>
-            <h4 class="font-semibold mb-4 text-sm sm:text-base">User Information</h4>
-            <div class="space-y-3">
-              <div>
-                <label class="block text-sm font-medium mb-1">Display Name</label>
-                <input type="text" id="edit-name" value="${user.displayName || ''}" 
-                       class="input-admin w-full p-3 rounded-lg text-sm">
-              </div>
-              <div>
-                <label class="block text-sm font-medium mb-1">Email</label>
-                <input type="email" id="edit-email" value="${user.email || ''}" 
-                       class="input-admin w-full p-3 rounded-lg text-sm" readonly>
-              </div>
-              <div>
-                <label class="block text-sm font-medium mb-1">User ID</label>
-                <input type="text" id="edit-user-id" value="${user.uniqueId || ''}" 
-                       class="input-admin w-full p-3 rounded-lg text-sm">
-              </div>
-            </div>
-          </div>
-          
-          <!-- Wallet Balances -->
-          <div>
-            <h4 class="font-semibold mb-4 text-sm sm:text-base">Wallet Balances</h4>
-            <div class="space-y-3">
-              ${allAssets.map(asset => `
-                <div class="flex items-center space-x-2 sm:space-x-3">
-                  <label class="w-12 sm:w-16 text-sm font-medium">${asset}</label>
-                  <input type="number" id="balance-${asset}" 
-                         value="${balances[asset] || 0}" 
-                         step="0.00000001"
-                         class="balance-input flex-1 p-2 rounded text-white text-sm">
-                  <button onclick="addToBalance('${asset}')" 
-                          class="btn-success px-2 sm:px-3 py-2 rounded text-white text-sm">
-                    <i class="fas fa-plus"></i>
-                  </button>
-                </div>
-              `).join('')}
-            </div>
-          </div>
-        </div>
-        
-        <!-- Transaction History -->
-        <div class="mt-6">
-          <h4 class="font-semibold mb-4 text-sm sm:text-base">Recent Transactions (${walletData.transactions.length})</h4>
-          <div class="max-h-60 overflow-y-auto space-y-2">
-            ${walletData.transactions.slice(0, 10).map(tx => `
-              <div class="flex items-center justify-between p-3 bg-gray-800 rounded">
+            <div class="balance-grid grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+                <!-- User Info -->
                 <div>
-                  <div class="font-medium text-sm">${tx.type} ${tx.asset}</div>
-                  <div class="text-xs text-gray-400">${new Date(tx.timestamp).toLocaleString()}</div>
+                    <h4 class="font-semibold mb-4 text-sm sm:text-base">User Information</h4>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Display Name</label>
+                            <input type="text" id="edit-name" value="${user.displayName || ''}"
+                                    class="input-admin w-full p-3 rounded-lg text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Email</label>
+                            <input type="email" id="edit-email" value="${user.email || ''}"
+                                    class="input-admin w-full p-3 rounded-lg text-sm" readonly>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">User ID</label>
+                            <input type="text" id="edit-user-id" value="${user.uniqueId || ''}"
+                                    class="input-admin w-full p-3 rounded-lg text-sm">
+                        </div>
+                    </div>
                 </div>
-                <div class="text-right">
-                  <div class="font-medium text-sm">${tx.amount} ${tx.asset}</div>
-                  <div class="text-xs text-gray-400">$${(tx.value || 0).toFixed(2)}</div>
+                
+                <!-- Wallet Balances -->
+                <div>
+                    <h4 class="font-semibold mb-4 text-sm sm:text-base">Wallet Balances</h4>
+                    <div class="space-y-3">
+                        ${allAssets.map(asset => `
+                            <div class="flex items-center space-x-2 sm:space-x-3">
+                                <label class="w-12 sm:w-16 text-sm font-medium">${asset}</label>
+                                <input type="number" id="balance-${asset}"
+                                        value="${balances[asset] || 0}"
+                                        step="0.00000001"
+                                       class="balance-input flex-1 p-2 rounded text-white text-sm">
+                                <button onclick="addToBalance('${asset}')"
+                                         class="btn-success px-2 sm:px-3 py-2 rounded text-white text-sm">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
+                        `).join('')}
+                    </div>
                 </div>
-              </div>
-            `).join('') || '<p class="text-gray-400 text-center py-4 text-sm">No transactions</p>'}
-          </div>
-        </div>
-        
-        <!-- Action Buttons -->
-        <div class="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-3 mt-6">
-          <button id="cancel-edit" class="px-4 sm:px-6 py-3 bg-gray-600 rounded-lg text-white font-medium text-sm">
-            Cancel
-          </button>
-          <button id="save-user" class="btn-admin px-4 sm:px-6 py-3 rounded-lg text-white font-medium text-sm">
-            <i class="fas fa-save mr-2"></i>Save Changes
-          </button>
-          <button onclick="addTransaction()" class="btn-success px-4 sm:px-6 py-3 rounded-lg text-white font-medium text-sm">
-            <i class="fas fa-plus mr-2"></i>Add Transaction
-          </button>
-        </div>
-      `;
+            </div>
+            
+            <!-- Transaction History -->
+            <div class="mt-6">
+                <h4 class="font-semibold mb-4 text-sm sm:text-base">Recent Transactions (${walletData.transactions.length})</h4>
+                <div class="max-h-60 overflow-y-auto space-y-2">
+                    ${walletData.transactions.slice(0, 10).map(tx => `
+                        <div class="flex items-center justify-between p-3 bg-gray-800 rounded">
+                            <div>
+                                <div class="font-medium text-sm">${tx.type} ${tx.asset}</div>
+                                <div class="text-xs text-gray-400">${new Date(tx.timestamp).toLocaleString()}</div>
+                            </div>
+                            <div class="text-right">
+                                <div class="font-medium text-sm">${tx.amount} ${tx.asset}</div>
+                                <div class="text-xs text-gray-400">$${(tx.value || 0).toFixed(2)}</div>
+                            </div>
+                        </div>
+                    `).join('') || '<p class="text-gray-400 text-center py-4 text-sm">No transactions</p>'}
+                </div>
+            </div>
+            
+            <!-- Action Buttons -->
+            <div class="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-3 mt-6">
+                <button id="cancel-edit" class="px-4 sm:px-6 py-3 bg-gray-600 rounded-lg text-white font-medium text-sm">
+                    Cancel
+                </button>
+                <button id="save-user" class="btn-admin px-4 sm:px-6 py-3 rounded-lg text-white font-medium text-sm">
+                    <i class="fas fa-save mr-2"></i>Save Changes
+                </button>
+                <button onclick="addTransaction()" class="btn-success px-4 sm:px-6 py-3 rounded-lg text-white font-medium text-sm">
+                    <i class="fas fa-plus mr-2"></i>Add Transaction
+                </button>
+            </div>
+        `;
 
       modal.classList.remove('hidden');
 
       // Setup modal event listeners
-      document.getElementById('cancel-edit').addEventListener('click', () => {
-        modal.classList.add('hidden');
-      });
+      const cancelBtn = document.getElementById('cancel-edit');
+      const saveBtn = document.getElementById('save-user');
 
-      document.getElementById('save-user').addEventListener('click', saveUserChanges);
+      if (cancelBtn) {
+        cancelBtn.addEventListener('click', () => {
+          modal.classList.add('hidden');
+        });
+      }
+
+      if (saveBtn) {
+        saveBtn.addEventListener('click', saveUserChanges);
+      }
     }
 
     // Add to balance function
@@ -751,9 +1284,12 @@
         color: '#ffffff'
       }).then((result) => {
         if (result.isConfirmed && result.value) {
-          const currentBalance = parseFloat(document.getElementById(`balance-${asset}`).value) || 0;
-          const addAmount = parseFloat(result.value);
-          document.getElementById(`balance-${asset}`).value = currentBalance + addAmount;
+          const balanceInput = document.getElementById(`balance-${asset}`);
+          if (balanceInput) {
+            const currentBalance = parseFloat(balanceInput.value) || 0;
+            const addAmount = parseFloat(result.value);
+            balanceInput.value = currentBalance + addAmount;
+          }
         }
       });
     };
@@ -763,28 +1299,28 @@
       Swal.fire({
         title: 'Add Transaction',
         html: `
-          <div class="space-y-4">
-            <select id="tx-type" class="w-full p-3 bg-gray-700 rounded text-white">
-              <option value="receive">Receive</option>
-              <option value="send">Send</option>
-              <option value="buy">Buy</option>
-              <option value="sell">Sell</option>
-              <option value="swap">Swap</option>
-            </select>
-            <select id="tx-asset" class="w-full p-3 bg-gray-700 rounded text-white">
-              <option value="BTC">Bitcoin (BTC)</option>
-              <option value="ETH">Ethereum (ETH)</option>
-              <option value="BNB">BNB (BNB)</option>
-              <option value="USDT">Tether (ERC20)</option>
-              <option value="TRC20">Tether (TRC20)</option>
-              <option value="ADA">Cardano (ADA)</option>
-            </select>
-            <input type="number" id="tx-amount" placeholder="Amount" step="0.00000001" 
-                   class="w-full p-3 bg-gray-700 rounded text-white">
-            <input type="number" id="tx-value" placeholder="USD Value" step="0.01" 
-                   class="w-full p-3 bg-gray-700 rounded text-white">
-          </div>
-        `,
+                <div class="space-y-4">
+                    <select id="tx-type" class="w-full p-3 bg-gray-700 rounded text-white">
+                        <option value="receive">Receive</option>
+                        <option value="send">Send</option>
+                        <option value="buy">Buy</option>
+                        <option value="sell">Sell</option>
+                        <option value="swap">Swap</option>
+                    </select>
+                    <select id="tx-asset" class="w-full p-3 bg-gray-700 rounded text-white">
+                        <option value="BTC">Bitcoin (BTC)</option>
+                        <option value="ETH">Ethereum (ETH)</option>
+                        <option value="BNB">BNB (BNB)</option>
+                        <option value="USDT">Tether (ERC20)</option>
+                        <option value="TRC20">Tether (TRC20)</option>
+                        <option value="ADA">Cardano (ADA)</option>
+                    </select>
+                    <input type="number" id="tx-amount" placeholder="Amount" step="0.00000001"
+                            class="w-full p-3 bg-gray-700 rounded text-white">
+                    <input type="number" id="tx-value" placeholder="USD Value" step="0.01"
+                            class="w-full p-3 bg-gray-700 rounded text-white">
+                </div>
+            `,
         showCancelButton: true,
         confirmButtonColor: '#f7931a',
         background: 'rgba(15, 15, 35, 0.9)',
@@ -833,23 +1369,29 @@
 
     // Save user changes
     async function saveUserChanges() {
-      const saveBtn = document.getElementById('save-user');
-      saveBtn.disabled = true;
-      saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Saving...';
+      const saveBtn = safeGetElement('save-user');
+      if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Saving...';
+      }
 
       try {
         console.log('Saving user changes...');
 
+        const nameInput = safeGetElement('edit-name');
+        const userIdInput = safeGetElement('edit-user-id');
+
         const updatedData = {
-          displayName: document.getElementById('edit-name').value,
-          uniqueId: document.getElementById('edit-user-id').value,
-          updatedAt: serverTimestamp()
+          displayName: nameInput ? nameInput.value : '',
+          uniqueId: userIdInput ? userIdInput.value : '',
+          updatedAt: window.firebase.serverTimestamp()
         };
 
         // Update balances
         const balances = {};
         ['BTC', 'ETH', 'BNB', 'USDT', 'TRC20', 'ADA'].forEach(asset => {
-          balances[asset] = parseFloat(document.getElementById(`balance-${asset}`).value) || 0;
+          const balanceInput = safeGetElement(`balance-${asset}`);
+          balances[asset] = balanceInput ? (parseFloat(balanceInput.value) || 0) : 0;
         });
 
         updatedData.walletData = {
@@ -859,9 +1401,13 @@
         };
 
         console.log('Updating user with data:', updatedData);
-        await updateDoc(doc(db, "users", currentEditingUser.id), updatedData);
+        await window.firebase.updateDoc(window.firebase.doc(db, "users", currentEditingUser.id), updatedData);
 
-        document.getElementById('user-edit-modal').classList.add('hidden');
+        const modal = safeGetElement('user-edit-modal');
+        if (modal) {
+          modal.classList.add('hidden');
+        }
+
         showToast('User updated successfully', 'success');
 
         // Refresh the user list
@@ -880,15 +1426,20 @@
           showToast('Error saving user changes: ' + error.message, 'error');
         }
       } finally {
-        saveBtn.disabled = false;
-        saveBtn.innerHTML = '<i class="fas fa-save mr-2"></i>Save Changes';
+        if (saveBtn) {
+          saveBtn.disabled = false;
+          saveBtn.innerHTML = '<i class="fas fa-save mr-2"></i>Save Changes';
+        }
       }
     }
 
     // Bulk operations
     async function bulkAddBalance() {
-      const asset = document.getElementById('bulk-asset').value;
-      const amount = parseFloat(document.getElementById('bulk-amount').value);
+      const assetSelect = safeGetElement('bulk-asset');
+      const amountInput = safeGetElement('bulk-amount');
+
+      const asset = assetSelect ? assetSelect.value : '';
+      const amount = amountInput ? parseFloat(amountInput.value) : 0;
 
       if (!amount || amount <= 0) {
         showToast('Please enter a valid amount', 'warning');
@@ -908,16 +1459,18 @@
       });
 
       if (result.isConfirmed) {
-        const bulkBtn = document.getElementById('bulk-add-btn');
-        bulkBtn.disabled = true;
-        bulkBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Processing...';
+        const bulkBtn = safeGetElement('bulk-add-btn');
+        if (bulkBtn) {
+          bulkBtn.disabled = true;
+          bulkBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Processing...';
+        }
 
         try {
           console.log('Starting bulk operation...');
-          const usersRef = collection(db, "users");
-          const querySnapshot = await getDocs(usersRef);
+          const usersRef = window.firebase.collection(db, "users");
+          const querySnapshot = await window.firebase.getDocs(usersRef);
 
-          const batch = writeBatch(db);
+          const batch = window.firebase.writeBatch(db);
           let updateCount = 0;
 
           querySnapshot.forEach((userDoc) => {
@@ -927,13 +1480,13 @@
 
             balances[asset] = (balances[asset] || 0) + amount;
 
-            batch.update(doc(db, "users", userDoc.id), {
+            batch.update(window.firebase.doc(db, "users", userDoc.id), {
               walletData: {
                 ...walletData,
                 balances: balances,
                 totalValue: calculateUserTotalValue(balances)
               },
-              updatedAt: serverTimestamp()
+              updatedAt: window.firebase.serverTimestamp()
             });
 
             updateCount++;
@@ -954,22 +1507,26 @@
             showToast('Error in bulk operation: ' + error.message, 'error');
           }
         } finally {
-          bulkBtn.disabled = false;
-          bulkBtn.innerHTML = '<i class="fas fa-exclamation-triangle mr-2"></i>Add to All Users';
+          if (bulkBtn) {
+            bulkBtn.disabled = false;
+            bulkBtn.innerHTML = '<i class="fas fa-exclamation-triangle mr-2"></i>Add to All Users';
+          }
         }
       }
     }
 
     // Export user data
     async function exportUserData() {
-      const exportBtn = document.getElementById('backup-data-btn');
-      exportBtn.disabled = true;
-      exportBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Exporting...';
+      const exportBtn = safeGetElement('backup-data-btn');
+      if (exportBtn) {
+        exportBtn.disabled = true;
+        exportBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Exporting...';
+      }
 
       try {
         console.log('Exporting user data...');
-        const usersRef = collection(db, "users");
-        const querySnapshot = await getDocs(usersRef);
+        const usersRef = window.firebase.collection(db, "users");
+        const querySnapshot = await window.firebase.getDocs(usersRef);
 
         const userData = [];
         querySnapshot.forEach((doc) => {
@@ -995,37 +1552,96 @@
           showToast('Error exporting user data: ' + error.message, 'error');
         }
       } finally {
-        exportBtn.disabled = false;
-        exportBtn.innerHTML = '<i class="fas fa-download mr-2"></i>Export User Data';
+        if (exportBtn) {
+          exportBtn.disabled = false;
+          exportBtn.innerHTML = '<i class="fas fa-download mr-2"></i>Export User Data';
+        }
       }
     }
 
-    // Setup event listeners
+    // Setup event listeners - WITH NULL CHECKS
     function setupEventListeners() {
-      document.getElementById('logout-btn').addEventListener('click', logout);
-      document.getElementById('search-user-btn').addEventListener('click', searchUser);
-      document.getElementById('load-all-users-btn').addEventListener('click', loadAllUsers);
-      document.getElementById('refresh-stats-btn').addEventListener('click', loadStats);
-      document.getElementById('bulk-add-btn').addEventListener('click', bulkAddBalance);
-      document.getElementById('backup-data-btn').addEventListener('click', exportUserData);
-      document.getElementById('close-modal').addEventListener('click', () => {
-        document.getElementById('user-edit-modal').classList.add('hidden');
-      });
+      const logoutBtn = safeGetElement('logout-btn');
+      if (logoutBtn) {
+        logoutBtn.addEventListener('click', logout);
+      }
+
+      const searchBtn = safeGetElement('search-user-btn');
+      if (searchBtn) {
+        searchBtn.addEventListener('click', searchUser);
+      }
+
+      const loadAllBtn = safeGetElement('load-all-users-btn');
+      if (loadAllBtn) {
+        loadAllBtn.addEventListener('click', loadAllUsers);
+      }
+
+      const refreshStatsBtn = safeGetElement('refresh-stats-btn');
+      if (refreshStatsBtn) {
+        refreshStatsBtn.addEventListener('click', loadStats);
+      }
+
+      const bulkAddBtn = safeGetElement('bulk-add-btn');
+      if (bulkAddBtn) {
+        bulkAddBtn.addEventListener('click', bulkAddBalance);
+      }
+
+      const backupBtn = safeGetElement('backup-data-btn');
+      if (backupBtn) {
+        backupBtn.addEventListener('click', exportUserData);
+      }
+
+      const closeModalBtn = safeGetElement('close-modal');
+      if (closeModalBtn) {
+        closeModalBtn.addEventListener('click', () => {
+          const modal = safeGetElement('user-edit-modal');
+          if (modal) {
+            modal.classList.add('hidden');
+          }
+        });
+      }
+
+      const addUserBtn = safeGetElement('add-user-btn');
+      if (addUserBtn) {
+        addUserBtn.addEventListener('click', showAddUserModal);
+      }
+
+      const refreshUsersBtn = safeGetElement('refresh-users-btn');
+      if (refreshUsersBtn) {
+        refreshUsersBtn.addEventListener('click', loadUsers);
+      }
+
+      const refreshPendingBtn = safeGetElement('refresh-pending-btn');
+      if (refreshPendingBtn) {
+        refreshPendingBtn.addEventListener('click', loadPendingTransactions);
+      }
 
       // Enter key search
-      document.getElementById('search-user-id').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') searchUser();
-      });
-      document.getElementById('search-email').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') searchUser();
-      });
+      const searchUserIdInput = safeGetElement('search-user-id');
+      if (searchUserIdInput) {
+        searchUserIdInput.addEventListener('keypress', (e) => {
+          if (e.key === 'Enter') searchUser();
+        });
+      }
+
+      const searchEmailInput = safeGetElement('search-email');
+      if (searchEmailInput) {
+        searchEmailInput.addEventListener('keypress', (e) => {
+          if (e.key === 'Enter') searchUser();
+        });
+      }
 
       // Click outside modal to close
-      document.getElementById('user-edit-modal').addEventListener('click', (e) => {
-        if (e.target.id === 'user-edit-modal') {
-          document.getElementById('user-edit-modal').classList.add('hidden');
-        }
-      });
+      const userEditModal = safeGetElement('user-edit-modal');
+      if (userEditModal) {
+        userEditModal.addEventListener('click', (e) => {
+          if (e.target.id === 'user-edit-modal') {
+            userEditModal.classList.add('hidden');
+          }
+        });
+      }
+
+      console.log('Event listeners setup completed');
     }
 
     // Logout function
@@ -1045,7 +1661,7 @@
           localStorage.removeItem('safvacut_admin_session');
           localStorage.removeItem('safvacut_admin_time');
           localStorage.removeItem('safvacut_admin_user');
-          window.location.href = 'index.html';
+          window.location.href = 'admin-login.html';
         }
       });
     }
@@ -1065,6 +1681,64 @@
       });
     }
 
+    // Initialize dashboard - IMPROVED WITH FIREBASE INIT
+    async function initializeDashboard() {
+      if (!checkAdminAuth()) return;
+
+      try {
+        showToast('Initializing Firebase...', 'info');
+
+        // Initialize Firebase first
+        const firebaseInitialized = await initializeFirebase();
+        if (!firebaseInitialized) {
+          showToast('Failed to initialize Firebase. Please refresh the page.', 'error');
+          return;
+        }
+
+        showToast('Loading admin dashboard...', 'info');
+
+        // Load all admin dashboard components with error handling
+        try {
+          await loadStats();
+        } catch (error) {
+          console.error('Error loading stats:', error);
+        }
+
+        try {
+          await loadUsers();
+        } catch (error) {
+          console.error('Error loading users:', error);
+        }
+
+        try {
+          await loadPendingTransactions();
+        } catch (error) {
+          console.error('Error loading pending transactions:', error);
+        }
+
+        // Setup event listeners after a small delay to ensure DOM is ready
+        setTimeout(() => {
+          setupEventListeners();
+        }, 100);
+
+        showToast('Dashboard loaded successfully', 'success');
+
+        // Auto-refresh pending transactions every 30 seconds
+        setInterval(async () => {
+          try {
+            await loadPendingTransactions();
+            console.log('Auto-refreshed pending transactions');
+          } catch (error) {
+            console.error('Auto-refresh error:', error);
+          }
+        }, 30000);
+
+      } catch (error) {
+        console.error('Dashboard initialization error:', error);
+        showToast('Error loading dashboard: ' + error.message, 'error');
+      }
+    }
+
     // Initialize dashboard on load
     document.addEventListener('DOMContentLoaded', initializeDashboard);
 
@@ -1079,6 +1753,7 @@
       console.error('Unhandled promise rejection:', e.reason);
       showToast('An unexpected error occurred', 'error');
     });
+
   </script>
 </body>
 
